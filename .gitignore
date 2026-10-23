@@ -6,3 +6,5 @@ dist/
 !.env.example
 **/.cli/
 **/cdk.out/
+Thumbs.db
+Desktop.ini
