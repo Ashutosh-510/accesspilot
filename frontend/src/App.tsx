@@ -1,11 +1,173 @@
-import { useState } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import ReactMarkdown from "react-markdown";
 import "./App.css";
+
+type ApprovalStage = "manager" | "application_owner";
+
+type AccessRequest = {
+  id: string;
+  employeeName: string;
+  application: string;
+  status: string;
+  managerApproval: string;
+  applicationOwnerApproval: string;
+};
+
+type RequestFollowUp = {
+  id: string;
+  requestId: string;
+  approvalStage: ApprovalStage;
+  note: string | null;
+  createdAt: string;
+};
+
+function getPendingApprovalStages(
+  request: AccessRequest | undefined,
+): ApprovalStage[] {
+  if (!request) {
+    return [];
+  }
+
+  const stages: ApprovalStage[] = [];
+  if (request.managerApproval === "pending") {
+    stages.push("manager");
+  }
+  if (request.applicationOwnerApproval === "pending") {
+    stages.push("application_owner");
+  }
+  return stages;
+}
+
+function isFollowUpRequest(message: string) {
+  return /(follow[\s-]?up|followup|chase|nudge|remind(?:er|ing)?)/i.test(
+    message,
+  );
+}
 
 function App() {
   const [message, setMessage] = useState("");
   const [response, setResponse] = useState("");
   const [loading, setLoading] = useState(false);
+  const [requests, setRequests] = useState<AccessRequest[]>([]);
+  const [selectedRequestId, setSelectedRequestId] = useState("");
+  const [approvalStage, setApprovalStage] = useState<ApprovalStage>("manager");
+  const [followUpNote, setFollowUpNote] = useState("");
+  const [followUpHistory, setFollowUpHistory] = useState<{
+    requestId: string;
+    items: RequestFollowUp[];
+  } | null>(null);
+  const [followUpLoading, setFollowUpLoading] = useState(false);
+  const [followUpError, setFollowUpError] = useState("");
+  const [followUpNotice, setFollowUpNotice] = useState("");
+  const [isFollowUpOpen, setIsFollowUpOpen] = useState(false);
+  const followUpSectionRef = useRef<HTMLElement>(null);
+
+  const requestsNeedingApproval = requests.filter(
+    (request) =>
+      request.status === "pending" &&
+      (request.managerApproval === "pending" ||
+        request.applicationOwnerApproval === "pending"),
+  );
+
+  const selectedRequest = requestsNeedingApproval.find(
+    (request) => request.id === selectedRequestId,
+  );
+
+  const followUps =
+    followUpHistory?.requestId === selectedRequestId
+      ? followUpHistory.items
+      : [];
+
+  const availableApprovalStages = getPendingApprovalStages(selectedRequest);
+
+  const openFollowUp = () => {
+    setIsFollowUpOpen(true);
+    window.requestAnimationFrame(() => {
+      followUpSectionRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+  };
+
+  useEffect(() => {
+    let isCurrent = true;
+
+    const loadRequests = async () => {
+      try {
+        const result = await fetch("http://localhost:3000/requests");
+        if (!result.ok) {
+          throw new Error(`Request list failed (${result.status})`);
+        }
+
+        const data: AccessRequest[] = await result.json();
+        if (isCurrent) {
+          setRequests(data);
+          const firstPendingRequest = data.find(
+            (request) =>
+              request.status === "pending" &&
+              (request.managerApproval === "pending" ||
+                request.applicationOwnerApproval === "pending"),
+          );
+          setSelectedRequestId(firstPendingRequest?.id ?? "");
+          setApprovalStage(
+            getPendingApprovalStages(firstPendingRequest)[0] ?? "manager",
+          );
+        }
+      } catch (error) {
+        if (isCurrent) {
+          setFollowUpError(
+            error instanceof Error
+              ? error.message
+              : "Could not load access requests.",
+          );
+        }
+      }
+    };
+
+    void loadRequests();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!selectedRequestId) {
+      return;
+    }
+
+    const controller = new AbortController();
+
+    const loadFollowUps = async () => {
+      setFollowUpError("");
+      try {
+        const result = await fetch(
+          `http://localhost:3000/requests/${encodeURIComponent(selectedRequestId)}/follow-ups`,
+          { signal: controller.signal },
+        );
+        if (!result.ok) {
+          throw new Error(`Follow-up history failed (${result.status})`);
+        }
+        setFollowUpHistory({
+          requestId: selectedRequestId,
+          items: await result.json(),
+        });
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          setFollowUpError(
+            error instanceof Error
+              ? error.message
+              : "Could not load follow-up history.",
+          );
+        }
+      }
+    };
+
+    void loadFollowUps();
+
+    return () => controller.abort();
+  }, [selectedRequestId]);
 
   const examples = [
     "Check the pending Salesforce access request for employee 1024.",
@@ -16,6 +178,10 @@ function App() {
 
   const askAccessPilot = async () => {
     if (!message.trim() || loading) return;
+
+    if (isFollowUpRequest(message)) {
+      openFollowUp();
+    }
 
     setLoading(true);
     setResponse("");
@@ -56,6 +222,56 @@ function App() {
 
   const askExample = (example: string) => {
     setMessage(example);
+  };
+
+  const recordFollowUp = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!selectedRequestId || !availableApprovalStages.includes(approvalStage)) {
+      setFollowUpError("Choose a request with a pending approval first.");
+      return;
+    }
+
+    setFollowUpLoading(true);
+    setFollowUpError("");
+    setFollowUpNotice("");
+
+    try {
+      const result = await fetch(
+        `http://localhost:3000/requests/${encodeURIComponent(selectedRequestId)}/follow-ups`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            approvalStage,
+            note: followUpNote.trim() || undefined,
+          }),
+        },
+      );
+
+      if (!result.ok) {
+        const error: { message?: string } = await result.json();
+        throw new Error(error.message ?? `Could not record follow-up (${result.status})`);
+      }
+
+      const followUp: RequestFollowUp = await result.json();
+      setFollowUpHistory((currentHistory) => ({
+        requestId: selectedRequestId,
+        items: [
+          followUp,
+          ...(currentHistory?.requestId === selectedRequestId
+            ? currentHistory.items
+            : []),
+        ],
+      }));
+      setFollowUpNote("");
+      setFollowUpNotice("Follow-up recorded. No message was sent.");
+    } catch (error) {
+      setFollowUpError(
+        error instanceof Error ? error.message : "Could not record follow-up.",
+      );
+    } finally {
+      setFollowUpLoading(false);
+    }
   };
 
   return (
@@ -123,6 +339,18 @@ function App() {
             </button>
 
             <button
+              className="follow-up-toggle"
+              type="button"
+              onClick={() =>
+                isFollowUpOpen ? setIsFollowUpOpen(false) : openFollowUp()
+              }
+              aria-expanded={isFollowUpOpen}
+              aria-controls="approval-follow-up"
+            >
+              {isFollowUpOpen ? "Close follow-up" : "Follow up on approval"}
+            </button>
+
+            <button
               className="clear-button"
               onClick={() => {
                 setMessage("");
@@ -133,6 +361,140 @@ function App() {
             </button>
           </div>
         </section>
+
+        {isFollowUpOpen && (
+          <section
+            className="follow-up-card"
+            id="approval-follow-up"
+            ref={followUpSectionRef}
+          >
+            <div className="follow-up-heading">
+              <div>
+                <h3>Approval follow-up</h3>
+                <p>
+                  Log when you chase an approver and keep a history by request.
+                </p>
+              </div>
+              <span className="tracking-badge">TRACKING ONLY</span>
+            </div>
+
+            <form onSubmit={recordFollowUp}>
+              <label className="follow-up-field">
+                Access request
+                <select
+                  value={selectedRequestId}
+                  onChange={(event) => {
+                    const requestId = event.target.value;
+                    const request = requestsNeedingApproval.find(
+                      (item) => item.id === requestId,
+                    );
+                    setSelectedRequestId(requestId);
+                    setApprovalStage(
+                      getPendingApprovalStages(request)[0] ?? "manager",
+                    );
+                    setFollowUpNotice("");
+                    setFollowUpError("");
+                  }}
+                  disabled={requestsNeedingApproval.length === 0}
+                  required
+                >
+                  {requestsNeedingApproval.length === 0 ? (
+                    <option value="">No requests need approval</option>
+                  ) : (
+                    requestsNeedingApproval.map((request) => (
+                      <option key={request.id} value={request.id}>
+                        {request.application} — {request.employeeName} (
+                        {request.id.slice(0, 8)})
+                      </option>
+                    ))
+                  )}
+                </select>
+              </label>
+
+              <label className="follow-up-field">
+                Approval to chase
+                <select
+                  value={approvalStage}
+                  onChange={(event) =>
+                    setApprovalStage(
+                      event.target.value === "application_owner"
+                        ? "application_owner"
+                        : "manager",
+                    )
+                  }
+                  disabled={availableApprovalStages.length === 0}
+                >
+                  {availableApprovalStages.map((stage) => (
+                    <option key={stage} value={stage}>
+                      {stage === "manager"
+                        ? "Manager approval"
+                        : "Application owner approval"}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="follow-up-field">
+                Note <span>(optional)</span>
+                <textarea
+                  className="follow-up-note"
+                  value={followUpNote}
+                  onChange={(event) => setFollowUpNote(event.target.value)}
+                  placeholder="Add context about this follow-up"
+                  maxLength={1000}
+                  rows={3}
+                />
+              </label>
+
+              <div className="follow-up-actions">
+                <p>
+                  Recording a follow-up does not send an email or notification.
+                </p>
+                <button
+                  className="ask-button"
+                  type="submit"
+                  disabled={followUpLoading || !selectedRequest}
+                >
+                  {followUpLoading ? "Recording..." : "Log follow-up"}
+                </button>
+              </div>
+            </form>
+
+            {followUpError && (
+              <p className="follow-up-message error" role="alert">
+                {followUpError}
+              </p>
+            )}
+            {followUpNotice && (
+              <p className="follow-up-message success" role="status">
+                {followUpNotice}
+              </p>
+            )}
+
+            <div className="follow-up-history">
+              <h4>Follow-up history</h4>
+              {followUps.length === 0 ? (
+                <p>No follow-ups recorded for this request yet.</p>
+              ) : (
+                <ul>
+                  {followUps.map((followUp) => (
+                    <li key={followUp.id}>
+                      <span>
+                        {followUp.approvalStage === "manager"
+                          ? "Manager approval"
+                          : "Application owner approval"}
+                        {followUp.note ? ` — ${followUp.note}` : ""}
+                      </span>
+                      <time dateTime={followUp.createdAt}>
+                        {new Date(followUp.createdAt).toLocaleString()}
+                      </time>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </section>
+        )}
 
         {/* EXAMPLES */}
         <section className="examples">

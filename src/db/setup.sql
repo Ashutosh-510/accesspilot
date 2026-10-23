@@ -11,3 +11,14 @@ CREATE TABLE IF NOT EXISTS "ApplicationAccess" (
     "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+CREATE TABLE IF NOT EXISTS "AccessRequestFollowUp" (
+    "id" VARCHAR(36) PRIMARY KEY,
+    "requestId" CHAR(36) NOT NULL REFERENCES "AccessRequest"("id") ON DELETE CASCADE,
+    "approvalStage" TEXT NOT NULL CHECK ("approvalStage" IN ('manager', 'application_owner')),
+    "note" TEXT,
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS "AccessRequestFollowUp_requestId_createdAt_idx"
+ON "AccessRequestFollowUp" ("requestId", "createdAt" DESC);

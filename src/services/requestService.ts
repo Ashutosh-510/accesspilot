@@ -3,6 +3,9 @@ import {
   findRequestById,
   findRequestsByEmployeeId,
   findPendingRequests,
+  findRequestFollowUps,
+  insertRequestFollowUp,
+  type ApprovalStage,
 } from "../models/requestModel.js";
 import { analyzeAccessRequest } from "./aiService.js";
 import { findEmployeeById } from "../models/employeeModel.js";
@@ -17,6 +20,18 @@ export async function getPendingRequests() {
 
 export async function getRequestById(id: string) {
   return findRequestById(id);
+}
+
+export async function getRequestFollowUps(requestId: string) {
+  return findRequestFollowUps(requestId);
+}
+
+export async function createRequestFollowUp(
+  requestId: string,
+  approvalStage: ApprovalStage,
+  note: string | null,
+) {
+  return insertRequestFollowUp(requestId, approvalStage, note);
 }
 
 export async function getEmployeeRequests(employeeId: string) {

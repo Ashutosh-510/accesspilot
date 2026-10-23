@@ -5,6 +5,8 @@ AccessPilot is an AI-assisted access-management application for administrators. 
 ## Features
 
 - Browse employee, application-access, and access-request information through the API.
+- Track follow-ups for pending manager and application-owner approvals.
+- Open the approval follow-up panel on demand, either from its button or by asking AccessPilot to chase an approval.
 - Ask the AccessPilot agent questions about requests, approvals, and access policies.
 - Expose AccessPilot tools over the Model Context Protocol (MCP), using either stdio or HTTP.
 - Retrieve policy context from Qdrant using Ollama embeddings.
@@ -55,6 +57,14 @@ Set `DATABASE_URL` in `.env` to your PostgreSQL connection string. The API also 
 | `QDRANT_COLLECTION` | `accesspilot-policies-ollama` | Qdrant collection for policy embeddings |
 
 AWS credentials are resolved through the standard AWS SDK credential chain. Never commit `.env`, `.env.local`, AWS credentials, or other secrets.
+
+After configuring the database, apply the application schema with:
+
+```bash
+npm run db:setup
+```
+
+This also creates the table used to persist approval follow-up history.
 
 ## Run locally
 
@@ -122,8 +132,12 @@ npm run build
 | `GET` | `/employees/:id/requests` | List an employee's access requests |
 | `GET` | `/requests` | List access requests |
 | `GET` | `/requests/:id` | Get an access request |
+| `GET` | `/requests/:id/follow-ups` | List follow-ups recorded for an access request |
+| `POST` | `/requests/:id/follow-ups` | Record a follow-up for a pending approval |
 | `GET` | `/requests/:id/analysis` | Analyze an access request with Bedrock |
 | `POST` | `/ask` | Ask the AccessPilot agent a question |
+
+The follow-up endpoint accepts `approvalStage` (`manager` or `application_owner`) and an optional `note` of up to 1,000 characters. Follow-ups are recorded for tracking only; AccessPilot does not send an email or notification.
 
 Example agent request:
 

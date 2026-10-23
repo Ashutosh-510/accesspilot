@@ -6,6 +6,7 @@
     "dev": "tsx src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
+    "db:setup": "tsx src/db/setup.ts",
     "postinstall": "prisma skills sync || exit 0",
     "contract:emit": "prisma contract emit",
     "mcp": "tsx src/mcp/server.ts",
