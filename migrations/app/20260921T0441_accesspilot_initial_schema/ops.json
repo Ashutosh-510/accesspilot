@@ -1,0 +1,178 @@
+[
+  {
+    "id": "schema.public",
+    "label": "Create schema \"public\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres"
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "Create schema \"public\"",
+        "sql": "CREATE SCHEMA IF NOT EXISTS \"public\"",
+        "params": []
+      }
+    ],
+    "postcheck": []
+  },
+  {
+    "id": "table.AccessRequest",
+    "label": "Create table \"AccessRequest\"",
+    "summary": "Creates table \"AccessRequest\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "AccessRequest"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"AccessRequest\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"AccessRequest\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"AccessRequest\"",
+        "sql": "CREATE TABLE \"public\".\"AccessRequest\" (\n  \"application\" text NOT NULL,\n  \"createdAt\" timestamptz DEFAULT (now()) NOT NULL,\n  \"employeeId\" character(36) NOT NULL,\n  \"id\" character(36) NOT NULL,\n  \"reason\" text,\n  \"requestedAccess\" text NOT NULL,\n  \"status\" text NOT NULL,\n  \"updatedAt\" timestamptz NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"AccessRequest\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"AccessRequest\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.Employee",
+    "label": "Create table \"Employee\"",
+    "summary": "Creates table \"Employee\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Employee"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"Employee\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Employee\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"Employee\"",
+        "sql": "CREATE TABLE \"public\".\"Employee\" (\n  \"createdAt\" timestamptz DEFAULT (now()) NOT NULL,\n  \"department\" text,\n  \"email\" text NOT NULL,\n  \"id\" character(36) NOT NULL,\n  \"name\" text NOT NULL,\n  \"role\" text,\n  \"updatedAt\" timestamptz NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"Employee\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Employee\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.RequestAnalysis",
+    "label": "Create table \"RequestAnalysis\"",
+    "summary": "Creates table \"RequestAnalysis\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "RequestAnalysis"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"RequestAnalysis\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"RequestAnalysis\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"RequestAnalysis\"",
+        "sql": "CREATE TABLE \"public\".\"RequestAnalysis\" (\n  \"confidence\" float8,\n  \"createdAt\" timestamptz DEFAULT (now()) NOT NULL,\n  \"id\" character(36) NOT NULL,\n  \"reasoning\" text,\n  \"recommendation\" text NOT NULL,\n  \"requestId\" character(36) NOT NULL,\n  \"updatedAt\" timestamptz NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"RequestAnalysis\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"RequestAnalysis\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.Employee.Employee_email_key",
+    "label": "Add unique constraint on \"Employee\" (email)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "Employee_email_key",
+        "table": "Employee"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"Employee_email_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Employee_email_key",
+          "public",
+          "\"public\".\"Employee\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"Employee_email_key\"",
+        "sql": "ALTER TABLE \"public\".\"Employee\" ADD CONSTRAINT \"Employee_email_key\" UNIQUE (\"email\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"Employee_email_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Employee_email_key",
+          "public",
+          "\"public\".\"Employee\""
+        ]
+      }
+    ]
+  }
+]

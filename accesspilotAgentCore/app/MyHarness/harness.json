@@ -1,0 +1,22 @@
+{
+  "name": "MyHarness",
+  "model": {
+    "provider": "bedrock",
+    "modelId": "nvidia.nemotron-nano-12b-v2"
+  },
+  "tools": [
+    {
+      "type": "remote_mcp",
+      "name": "accesspilot-mcp",
+      "config": {
+        "remoteMcp": {
+          "url": "http://localhost:8000/mcp"
+        }
+      }
+    }
+  ],
+  "skills": [],
+  "memory": {
+    "mode": "managed"
+  }
+}

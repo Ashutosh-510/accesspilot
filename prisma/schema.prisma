@@ -1,0 +1,39 @@
+generator client {
+  provider = "prisma-client"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Employee {
+  id           String              @id
+  name         String
+  role         String
+  department   String
+  applications ApplicationAccess[]
+  requests     AccessRequest[]
+  createdAt    DateTime            @default(now())
+}
+
+model ApplicationAccess {
+  id         Int      @id @default(autoincrement())
+  name       String
+  status     String
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id])
+
+  @@unique([employeeId, name])
+}
+
+model AccessRequest {
+  id                       String   @id
+  employeeId               String
+  application              String
+  status                   String
+  managerApproval          String
+  applicationOwnerApproval String
+  priority                 String
+  employee                 Employee @relation(fields: [employeeId], references: [id])
+  createdAt                DateTime @default(now())
+}

@@ -1,0 +1,84 @@
+# AccessPilot Access Management Policy
+
+## Manager Approval
+
+Every employee access request must receive manager approval
+before the access request can proceed.
+
+Manager approval confirms that the employee requires the
+requested application or access level for their work.
+
+## Application Owner Approval
+
+Application owner approval is required before access can be
+granted when the application owner needs to validate the
+business requirement.
+
+If application owner approval is pending, the access request
+requires administrator attention.
+
+## Access Request Priority
+
+Access requests are categorized into three priority levels:
+
+### High Priority
+
+High priority requests should be reviewed first.
+
+Examples include:
+
+- Critical business requirements
+- Production access
+- Privileged or administrative access
+- Requests that may block critical work
+
+### Medium Priority
+
+Medium priority requests require timely review but are not
+considered immediately critical.
+
+Examples include:
+
+- Normal business applications with pending approval
+- Requests required for an active project
+- Requests with one incomplete approval
+
+### Low Priority
+
+Low priority requests can be reviewed after higher priority
+requests.
+
+Examples include:
+
+- Non-critical applications
+- Requests without an immediate business dependency
+
+## Pending Access Requests
+
+An access request should remain pending when one or more
+required approvals are incomplete.
+
+Administrators should identify the missing approval and
+follow up with the appropriate approver.
+
+## Security
+
+Access should not be granted when required approvals are
+missing.
+
+Privileged access should receive additional scrutiny because
+it can provide greater access to enterprise systems and data.
+
+## Administrator Actions
+
+When reviewing an access request, administrators should:
+
+1. Verify the employee.
+2. Verify the requested application.
+3. Check manager approval.
+4. Check application owner approval.
+5. Review the requested access level.
+6. Review the request priority.
+7. Identify missing approvals.
+8. Follow up with the appropriate approver.
+9. Grant access only after required approvals are complete.
